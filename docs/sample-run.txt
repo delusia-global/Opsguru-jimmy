@@ -1,0 +1,91 @@
+
+=== 1/6 ============================================================
+Question: What was our total recognized revenue in USD for paid invoices in 2024?
+Status: ok
+Explanation: Sums USD amounts from recognized revenue invoices dated in 2024, showing the paid total, the refund total, and the net revenue as separate columns.
+SQL:
+SELECT ROUND(SUM(CASE WHEN status = 'paid' THEN amount_usd ELSE 0 END), 2) AS paid_revenue_usd, ROUND(SUM(CASE WHEN status = 'refunded' THEN amount_usd ELSE 0 END), 2) AS refunds_usd, ROUND(SUM(amount_usd), 2) AS net_revenue_usd FROM v_recognized_revenue WHERE invoice_date >= DATE '2024-01-01' AND invoice_date < DATE '2025-01-01'
+paid_revenue_usd  refunds_usd  net_revenue_usd
+----------------  -----------  ---------------
+32686371.05       -1931282.8   30755088.25    
+Caveats:
+- Non-USD amounts are converted at fixed rates as briefed; the source data suggests they may already be rate-adjusted.
+[claude-sonnet-5-5, 2592 ms]
+
+=== 2/6 ============================================================
+Question: Which region has the highest average MRR per account?
+Status: ok
+Explanation: Computes the average MRR per active account for each region and returns the region with the highest average.
+SQL:
+SELECT region, ROUND(AVG(mrr_usd), 2) AS avg_mrr_per_account FROM v_accounts WHERE is_active GROUP BY region ORDER BY AVG(mrr_usd) DESC LIMIT 1
+region  avg_mrr_per_account
+------  -------------------
+APAC    6272.22            
+Caveats:
+- Account IDs are not a stable key in this export; per-account figures are approximate.
+- 16 invoices had conflicting statuses across source systems; the latest lifecycle state was used.
+[claude-sonnet-5-5, 2163 ms]
+
+=== 3/6 ============================================================
+Question: How much have we given back in refunds?
+Status: ok
+Explanation: Sums the USD amount of all refunded invoices in recognized revenue, shown as a positive total given back along with the count of refund invoices.
+SQL:
+SELECT ROUND(-SUM(amount_usd), 2) AS total_refunds_usd, COUNT(*) AS refund_count FROM v_recognized_revenue WHERE status = 'refunded'
+total_refunds_usd  refund_count
+-----------------  ------------
+8925163.77         292         
+Caveats:
+- Non-USD amounts are converted at fixed rates as briefed; the source data suggests they may already be rate-adjusted.
+- 16 invoices had conflicting statuses across source systems; the latest lifecycle state was used.
+[claude-sonnet-5-5, 1445 ms]
+
+=== 4/6 ============================================================
+Question: What's the churn rate among Enterprise accounts vs Starter?
+Status: ok
+Explanation: Computes the share of accounts flagged as churned, along with total and churned account counts, for the Enterprise and Starter plans using the one-row-per-account view.
+SQL:
+SELECT plan, COUNT(*) AS total_accounts, COUNT(*) FILTER (WHERE churned) AS churned_accounts, ROUND(100.0 * COUNT(*) FILTER (WHERE churned) / COUNT(*), 2) AS churn_rate_pct FROM v_accounts WHERE plan IN ('Enterprise', 'Starter') GROUP BY plan ORDER BY plan
+plan        total_accounts  churned_accounts  churn_rate_pct
+----------  --------------  ----------------  --------------
+Enterprise  780             171               21.92         
+Starter     1882            354               18.81         
+Caveats:
+- Account IDs are not a stable key in this export; per-account figures are approximate.
+- 16 invoices had conflicting statuses across source systems; the latest lifecycle state was used.
+[claude-sonnet-5-5, 2296 ms]
+
+=== 5/6 ============================================================
+Question: List the top 5 accounts by revenue, and flag any with CSAT ≤ 2.
+Status: ok
+Explanation: Ranks accounts by net recognized revenue in USD (paid plus negative refunds, shown as separate columns), returns the top five, and flags those whose CSAT score is 2 or lower.
+SQL:
+WITH rev AS (SELECT account_id, SUM(amount_usd) FILTER (WHERE status = 'paid') AS paid_usd, SUM(amount_usd) FILTER (WHERE status = 'refunded') AS refunds_usd, SUM(amount_usd) AS net_usd FROM v_recognized_revenue GROUP BY account_id) SELECT a.account_id, a.account_name, ROUND(COALESCE(r.paid_usd, 0), 2) AS paid_usd, ROUND(COALESCE(r.refunds_usd, 0), 2) AS refunds_usd, ROUND(r.net_usd, 2) AS net_revenue_usd, a.csat_score, COALESCE(a.csat_score <= 2, FALSE) AS low_csat_flag FROM rev r JOIN v_accounts a ON a.account_id = r.account_id ORDER BY r.net_usd DESC LIMIT 5
+account_id  account_name         paid_usd    refunds_usd  net_revenue_usd  csat_score  low_csat_flag
+----------  -------------------  ----------  -----------  ---------------  ----------  -------------
+ACC-7509    Stark Inc            1210592.75  0.0          1210592.75       4           False        
+ACC-1420    Tyrell Industries    1208092.75  0.0          1208092.75       NULL        False        
+ACC-9946    Initech LLC          1205642.75  0.0          1205642.75       4           False        
+ACC-1196    Pied Piper Partners  1107352.84  0.0          1107352.84       3           False        
+ACC-5211    Oscorp Industries    1085078.48  0.0          1085078.48       5           False        
+Caveats:
+- Account IDs are not a stable key in this export; per-account figures are approximate.
+- Non-USD amounts are converted at fixed rates as briefed; the source data suggests they may already be rate-adjusted.
+- 16 invoices had conflicting statuses across source systems; the latest lifecycle state was used.
+[claude-sonnet-5-5, 4652 ms]
+
+=== 6/6 ============================================================
+Question: How many invoices are stuck in pending/failed and what's the exposed $?
+Status: ok
+Explanation: Counts pending and failed invoices and sums their USD amounts, broken out by status with an overall total row.
+SQL:
+SELECT status, COUNT(*) AS invoice_count, ROUND(SUM(amount_usd), 2) AS exposed_usd FROM v_open_exposure GROUP BY status UNION ALL SELECT 'total' AS status, COUNT(*) AS invoice_count, ROUND(SUM(amount_usd), 2) AS exposed_usd FROM v_open_exposure ORDER BY status
+status   invoice_count  exposed_usd
+-------  -------------  -----------
+failed   396            13157652.28
+pending  498            15825603.53
+total    894            28983255.81
+Caveats:
+- Non-USD amounts are converted at fixed rates as briefed; the source data suggests they may already be rate-adjusted.
+- 16 invoices had conflicting statuses across source systems; the latest lifecycle state was used.
+[claude-sonnet-5-5, 2229 ms]

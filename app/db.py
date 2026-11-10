@@ -4,6 +4,8 @@ Implements specs/schema.md section 2 (objects), 5.4 (v_recognized_revenue) and 6
 """
 from __future__ import annotations
 
+import threading
+from dataclasses import dataclass
 from pathlib import Path
 
 import duckdb
@@ -127,6 +129,55 @@ def connect(db_path: Path = config.DB_PATH, read_only: bool = True) -> duckdb.Du
     if not db_path.exists():
         raise FileNotFoundError(f"database not found at {db_path}; run `python -m app build`")
     return duckdb.connect(str(db_path), read_only=read_only)
+
+
+class QueryTimeout(Exception):
+    """The query ran longer than config.QUERY_TIMEOUT_SECONDS and was interrupted."""
+
+
+@dataclass
+class QueryResult:
+    columns: list[str]
+    rows: list[tuple]
+    truncated: bool
+
+
+def run_query(con: duckdb.DuckDBPyConnection, sql: str,
+              row_cap: int = config.QUERY_ROW_CAP,
+              timeout: float = config.QUERY_TIMEOUT_SECONDS) -> QueryResult:
+    """Execute on an (already read-only) connection with a row cap and a wall-clock timeout.
+
+    Query contract, flow step 4. DuckDB has no statement timeout, so a timer thread calls
+    `interrupt()` on the connection. Raises QueryTimeout or duckdb.Error.
+    """
+    timer = threading.Timer(timeout, con.interrupt)
+    timer.start()
+    try:
+        cursor = con.execute(sql)
+        rows = cursor.fetchmany(row_cap + 1)
+        columns = [d[0] for d in cursor.description or []]
+    except duckdb.InterruptException as e:
+        raise QueryTimeout(f"query exceeded {timeout:g} s and was cancelled") from e
+    finally:
+        timer.cancel()
+    truncated = len(rows) > row_cap
+    return QueryResult(columns=columns, rows=rows[:row_cap], truncated=truncated)
+
+
+def describe_relations(con: duckdb.DuckDBPyConnection, relations=config.ALLOWED_RELATIONS) -> dict[str, list[tuple[str, str]]]:
+    """{relation: [(column, type), ...]} for the prompt, so the schema cannot drift from the DB."""
+    return {
+        rel: [(r[0], r[1]) for r in con.execute(f"DESCRIBE {rel}").fetchall()]
+        for rel in relations
+    }
+
+
+def ensure_built(csv_path: Path = config.RAW_CSV_PATH, db_path: Path = config.DB_PATH) -> bool:
+    """Build only if the database file is missing (ask and the demo). Returns True if built."""
+    if db_path.exists():
+        return False
+    build(csv_path, db_path)
+    return True
 
 
 def build(csv_path: Path = config.RAW_CSV_PATH, db_path: Path = config.DB_PATH) -> PipelineResult:

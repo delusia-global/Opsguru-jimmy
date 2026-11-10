@@ -36,6 +36,25 @@ ANTHROPIC_MODEL = _env("ANTHROPIC_MODEL", "claude-sonnet-5-5")
 QUERY_TIMEOUT_SECONDS = 30
 QUERY_ROW_CAP = 200
 QUESTION_MAX_CHARS = 500
+LLM_MAX_TOKENS = 4096
+
+# The six stakeholder questions, verbatim from data/BUSINESS_CONTEXT.md (the demo).
+DEMO_QUESTIONS = (
+    "What was our total recognized revenue in USD for paid invoices in 2024?",
+    "Which region has the highest average MRR per account?",
+    "How much have we given back in refunds?",
+    "What's the churn rate among Enterprise accounts vs Starter?",
+    "List the top 5 accounts by revenue, and flag any with CSAT ≤ 2.",
+    "How many invoices are stuck in pending/failed and what's the exposed $?",
+)
+
+# Rule-based caveats (query contract, "Caveats"). Keyed by trigger name used in app/guard.py.
+CAVEATS = {
+    "accounts": "Account IDs are not a stable key in this export; per-account figures are approximate.",
+    "fx": "Non-USD amounts are converted at fixed rates as briefed; the source data suggests they may already be rate-adjusted.",
+    "dates": "81 invoices have dates whose day/month order was inferred from the separator.",
+    "status_conflict": "16 invoices had conflicting statuses across source systems; the latest lifecycle state was used.",
+}
 ALLOWED_RELATIONS = ("invoices", "v_recognized_revenue", "v_open_exposure", "v_accounts")
 # Functions that read files, the network or the catalogue. Table-position functions are
 # rejected wholesale by the guard; this list catches the scalar ones too.

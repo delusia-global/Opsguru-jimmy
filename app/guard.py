@@ -5,6 +5,7 @@ of defence; this is the first.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 import sqlglot
@@ -61,3 +62,35 @@ def check_sql(sql: str) -> GuardResult:
         relations.add(name)
 
     return GuardResult(ok=True, relations=frozenset(relations))
+
+
+_PERIOD_RE = re.compile(r"\bmonth\b|\bquarter\b|%m", re.IGNORECASE)
+
+
+def caveats(sql: str, relations: frozenset[str]) -> list[str]:
+    """Rule-based caveats from the query contract, decided from the parsed SQL, never by the model."""
+    stmt = sqlglot.parse_one(sql, read="duckdb")
+    columns = {c.name.lower() for c in stmt.find_all(exp.Column)}
+    out: list[str] = []
+
+    groups_by_account = any(
+        any(c.name.lower() == "account_id" for c in g.find_all(exp.Column)) for g in stmt.find_all(exp.Group)
+    )
+    if "v_accounts" in relations or groups_by_account:
+        out.append(config.CAVEATS["accounts"])
+
+    if "amount_usd" in columns:
+        out.append(config.CAVEATS["fx"])
+
+    # Month/quarter functions render as MONTH(...), DATE_TRUNC('MONTH', ...), EXTRACT(MONTH FROM ...),
+    # STRFTIME(..., '%m'), DATE_PART('quarter', ...). sqlglot's internal names differ, so match the
+    # rendered DuckDB text of each function call.
+    if any(_PERIOD_RE.search(func.sql(dialect="duckdb")) for func in stmt.find_all(exp.Func)):
+        out.append(config.CAVEATS["dates"])
+
+    has_date_predicate = any(
+        any(c.name.lower() == "invoice_date" for c in w.find_all(exp.Column)) for w in stmt.find_all(exp.Where)
+    )
+    if not has_date_predicate or "status_conflict" in columns:
+        out.append(config.CAVEATS["status_conflict"])
+    return out
