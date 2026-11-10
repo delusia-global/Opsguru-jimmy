@@ -1,0 +1,17 @@
+name: evals
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      # Tier 1 (pipeline) and Tier 3a (guard). No API key: the --nl tiers are not run in CI.
+      - run: python -m evals
