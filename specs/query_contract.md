@@ -15,9 +15,9 @@ shown, so the answer is auditable.
 |---|---|
 | `python -m app` | **The demo.** Builds the database if missing, then answers the six stakeholder questions from `data/BUSINESS_CONTEXT.md` |
 | `python -m app build` | Runs the pipeline (Spec 1) and prints the data-quality report |
-| `python -m app ask "<question>"` | Answers one question |
+| `python -m app ask "<question>"` | Answers one question. Builds the database if it is missing |
 | `python -m app ask "<question>" --json` | Same, as one JSON object on stdout |
-| `python -m evals` | Tier 1 and 3a evals (no API key) |
+| `python -m evals` | Tier 1 and 3a evals (no API key). Always rebuilds the database first so it tests current code |
 | `python -m evals --nl` | Adds Tier 2 and 3b (needs API key) |
 
 `ask` and the demo need `ANTHROPIC_API_KEY`. If it is missing, exit with a one-line message
@@ -62,7 +62,8 @@ Reject unless all of these hold. Parse the SQL; do not use string matching alone
 
 - Exactly one statement, and it is a `SELECT` (CTEs allowed).
 - Every relation referenced is in the allow-list: `invoices`, `v_recognized_revenue`,
-  `v_open_exposure`, `v_accounts`. `quarantine` and `dq_report` are not exposed.
+  `v_open_exposure`, `v_accounts`. `quarantine` and `dq_report` are not exposed. CTE names
+  are excluded from this check, but every relation referenced inside a CTE body is checked.
 - No table functions or file/network access (`read_csv`, `read_parquet`, `glob`, `ATTACH`,
   `COPY`, `INSTALL`, `LOAD`, `PRAGMA`, …).
 - Results are capped at 200 rows; set `truncated` when the cap applies.
@@ -92,7 +93,7 @@ Generated from Spec 1 at prompt-build time where possible, so the two cannot dri
 | references `v_accounts` or groups by `account_id` | Account IDs are not a stable key in this export; per-account figures are approximate. |
 | uses `amount_usd` | Non-USD amounts are converted at fixed rates as briefed; the source data suggests they may already be rate-adjusted. |
 | filters or groups by month or quarter | 81 invoices have dates whose day/month order was inferred from the separator. |
-| result includes rows with `status_conflict` or no date filter | 16 invoices had conflicting statuses across source systems; the latest lifecycle state was used. |
+| has no predicate on `invoice_date`, or references `status_conflict` | 16 invoices had conflicting statuses across source systems; the latest lifecycle state was used. |
 
 ## Not in scope
 

@@ -43,7 +43,7 @@ business rules live in one place and are not re-derived per question.
 | `seats` | INTEGER | no | > 0 |
 | `currency` | VARCHAR | no | `USD` / `EUR` / `GBP` |
 | `amount_local` | DECIMAL(14,2) | no | Parsed per 4.5. Signed: negative only for refunds |
-| `amount_usd` | DECIMAL(14,2) | no | `amount_local × fx[currency]` (section 5) |
+| `amount_usd` | DECIMAL(18,4) | no | `amount_local × fx[currency]`, exact, never rounded per row (section 5) |
 | `discount_pct` | DECIMAL(5,2) | no | 0–100 |
 | `status` | VARCHAR | no | `paid` / `pending` / `failed` / `refunded` / `void` (mapping 4.3) |
 | `payment_method` | VARCHAR | yes | `credit_card` / `ach` / `wire` / `invoice` (mapping 4.4). Blank → NULL |
@@ -116,10 +116,21 @@ of 81 invoices and the year of none. Anything that parses under no format → qu
 ### 4.7 churned
 True ← `true`, `yes`, `1`, `y`. False ← `false`, `no`, `0`, `n`. Anything else → quarantine.
 
+### 4.8 other typed columns
+`seats`, `support_tickets` and `csat_score` parse as strict integers (digits only, optional
+sign) after `strip()`; `discount_pct` as a strict decimal. `region` and `currency` are
+stripped and upper-cased and must be in their allowed sets (section 3). Anything else →
+quarantine. No other coercion.
+
 ## 5. Money
 
 ### 5.1 FX (fixed reference rates, from config)
 `USD = 1.00`, `EUR = 1.08`, `GBP = 1.27`. `amount_usd = amount_local × rate`, as the briefing states.
+
+`amount_usd` is stored as the exact product (2 dp × 2 dp is exact at 4 dp) and is never
+rounded per row. Rounding to 2 dp happens only in the final `SELECT` of a query, after any
+`SUM`. The eval expected values were derived the same way: unrounded products, rounded once
+at the end. `mrr_usd` stays DECIMAL(14,2); it is exact at 2 dp.
 
 ### 5.2 Known issue with 5.1 — flagged, not fixed
 Every EUR/GBP amount in the file already equals *USD list price × rate*. Multiplying by the
@@ -196,6 +207,10 @@ says so.
 Read from environment / `.env`, with defaults in one config module: `RAW_CSV_PATH`, `DB_PATH`,
 `AS_OF_DATE`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`. FX rates, list prices and the category
 mappings live in that same module as named constants.
+
+- Default `ANTHROPIC_MODEL` is the ID in `.env.example`, confirmed against the Anthropic docs
+  before use.
+- Query timeout for the question interface is 30 seconds, a named constant in the same module.
 
 ## 10. `dq_report` — expected values on the provided file
 
