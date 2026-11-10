@@ -10,6 +10,7 @@ import json
 import time
 from decimal import Decimal
 
+import anthropic
 import duckdb
 
 from app import config, db, guard, llm
@@ -56,13 +57,15 @@ def answer(question: str) -> dict:
     con = db.connect(read_only=True)
     try:
         schema = db.describe_relations(con)
-        reply = llm.generate_sql(question, schema)
-        result["model"] = reply.model
         previous_sql, error = None, None
         for attempt in (1, 2):                      # one retry only (step 5)
-            if attempt == 2:
+            try:
                 reply = llm.generate_sql(question, schema, previous_sql, error)
-                result["retried"] = True
+            except anthropic.APIError as e:
+                return finish("error", f"model call failed: {type(e).__name__}: {str(e).splitlines()[0]}")
+            except (json.JSONDecodeError, ValueError, AttributeError) as e:
+                return finish("error", f"model reply was not the expected JSON: {str(e).splitlines()[0]}")
+            result["model"], result["retried"] = reply.model, attempt == 2
             if reply.refusal or not reply.sql:
                 result["explanation"] = reply.refusal or reply.explanation
                 return finish("refused")

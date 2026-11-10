@@ -117,6 +117,8 @@ CHURNED_MAP: dict[str, bool] = {
 }
 REVENUE_STATUSES = ("paid", "refunded")      # schema 5.4
 OPEN_EXPOSURE_STATUSES = ("pending", "failed")
+REFUND_STATUS = "refunded"                   # schema 4.5: negative amount <=> this status
+ACTIVE_STATUS = "paid"                       # schema 6: is_active = latest_status = this AND NOT churned
 
 # Near-duplicate resolution: the latest lifecycle state wins (schema section 7).
 STATUS_LIFECYCLE_RANK: dict[str, int] = {

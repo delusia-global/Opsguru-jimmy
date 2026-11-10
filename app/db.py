@@ -66,7 +66,7 @@ def view_ddl() -> list[str]:
         f"WHERE status IN ({_in_list(config.OPEN_EXPOSURE_STATUSES)})",
         # Section 6: one row per account_id from its latest invoice
         # (highest invoice_date, ties broken by highest invoice_id; any status counts).
-        """
+        f"""
         CREATE VIEW v_accounts AS
         WITH ranked AS (
             SELECT *,
@@ -79,7 +79,7 @@ def view_ddl() -> list[str]:
                status       AS latest_status,
                invoice_date AS latest_invoice_date,
                invoice_id   AS latest_invoice_id,
-               (status = 'paid' AND NOT churned) AS is_active
+               (status = '{config.ACTIVE_STATUS}' AND NOT churned) AS is_active
         FROM ranked WHERE rn = 1
         """,
     ]

@@ -250,7 +250,7 @@ def run(csv_path=config.RAW_CSV_PATH) -> PipelineResult:
     raw_by_source = {int(r["source_row"]): r for r, _ in cleaned}
     for row in survivors:
         negative = row["amount_local"] < 0
-        if negative != (row["status"] == "refunded"):
+        if negative != (row["status"] == config.REFUND_STATUS):
             send_to_quarantine(raw_by_source[row["source_row"]],
                                f"amount sign {'negative' if negative else 'non-negative'} disagrees with status {row['status']}")
         else:

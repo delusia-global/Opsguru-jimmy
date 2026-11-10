@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import sqlglot
 from sqlglot import exp
-from sqlglot.errors import ParseError
+from sqlglot.errors import SqlglotError
 
 from app import config
 
@@ -32,7 +32,7 @@ def check_sql(sql: str) -> GuardResult:
         return _reject("empty SQL")
     try:
         statements = [s for s in sqlglot.parse(sql, read="duckdb") if s is not None]
-    except ParseError as e:
+    except SqlglotError as e:  # ParseError, TokenError (unterminated string/comment), ...
         return _reject(f"could not parse SQL: {str(e).splitlines()[0]}")
 
     if len(statements) != 1:
