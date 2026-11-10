@@ -52,9 +52,13 @@ without it.
   "caveats": ["..."],
   "model": "...",
   "latency_ms": 0,
-  "retried": false
+  "retried": false,
+  "error": null
 }
 ```
+
+`error` is the guard's rejection reason or the database error message. It is `null` unless
+`status` is `rejected` or `error`.
 
 ## SQL guard
 
