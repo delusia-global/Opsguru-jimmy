@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m app *)",
+      "Bash(python -m evals *)",
+      "Bash(python -m pytest *)",
+      "Bash(python scripts/profile_raw.py *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Edit(./data/**)",
+      "Edit(./specs/evals.md)",
+      "Bash(git push *)"
+    ]
+  }
+}

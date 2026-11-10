@@ -1,0 +1,26 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# generated
+build/
+*.duckdb
+*.duckdb.wal
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Claude Code local-only files
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
