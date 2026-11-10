@@ -70,6 +70,7 @@ SELECT ROUND(SUM(amount_usd), 2) AS total_usd, COUNT(*) AS invoices
 FROM invoices WHERE status = 'refunded';
 ```
 Expected: **−8,925,163.77** across **292** invoices. Tier 2 accepts the absolute value.
+Tier 2 passes on the amount alone; the count is reported but not required, because the question does not ask for it.
 
 ### Q4 — "What's the churn rate among Enterprise accounts vs Starter?"
 ```sql
@@ -79,8 +80,7 @@ FROM v_accounts WHERE plan IN ('Enterprise', 'Starter')
 GROUP BY plan ORDER BY plan;
 ```
 Expected: Enterprise **21.92%** (171 of 780), Starter **18.81%** (354 of 1,882).
-Tier 2 accepts the rate as a percentage or a fraction (0.2192).
-
+Tier 2 accepts the rate as a percentage or a fraction (0.2192). Tier 2 passes on the two rates; the account counts are reported but not required.
 ### Q5 — "List the top 5 accounts by revenue, and flag any with CSAT ≤ 2."
 ```sql
 SELECT r.account_id, a.account_name, ROUND(SUM(r.amount_usd), 2) AS revenue_usd,
