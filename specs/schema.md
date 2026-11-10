@@ -166,7 +166,8 @@ One row per `account_id`. Attributes (`account_name`, `region`, `industry`, `pla
 **latest invoice**: highest `invoice_date`, ties broken by highest `invoice_id`. Any status
 counts when choosing the latest invoice.
 
-- `latest_status`, `latest_invoice_date`: from that invoice.
+- `latest_status`, `latest_invoice_date`, `latest_invoice_id`: from that invoice. The ID is
+  there for citation.
 - `is_active` = `latest_status = 'paid' AND NOT churned`. "MRR per account" questions use
   active accounts only.
 - Churn rate for a group = churned accounts ÷ all accounts in the group.
