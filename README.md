@@ -15,7 +15,7 @@ against an independent calculation and keeps one known-wrong answer visible rath
 python -m venv .venv
 .venv\Scripts\activate          # Windows;  source .venv/bin/activate on macOS/Linux
 pip install -r requirements.txt
-copy .env.example .env          # then put your Anthropic key in .env
+copy .env.example .env          # Windows;  cp .env.example .env on macOS/Linux. Then put your Anthropic key in .env
 python -m app                   # the demo: builds the database, answers the six questions
 ```
 
@@ -185,22 +185,22 @@ and the spec review):
 
 ## How AI was used
 
-The specs came first and by hand. The first two commits are the raw data, the profile and the
-three specs; no code existed yet. Claude Code (Claude Fable 5.1) then built the project from the
-specs in six steps, one commit each, following [docs/build-plan.md](docs/build-plan.md). Each
-step began with a plan and a list of places where the spec was ambiguous, silent or
-contradictory, and those were resolved by changing the spec in its own commit before any code.
-Three gaps found that way: the rounding rule for `amount_usd` (which would have failed the
-evals on tie cases), the caveat trigger that could not be evaluated as written, and the parsing
-rules for the typed columns the spec had not covered.
+Before this session the data was profiled with Claude in a separate planning chat. For each
+of seven cleaning decisions Claude proposed options with a recommendation; I reviewed and
+accepted them. Claude then drafted the three specs, `CLAUDE.md`, the `.claude/` configuration
+and the eval oracle from those decisions. The specs were not written by hand.
 
-The eval oracle was written separately and the AI was told not to read it while building the
-pipeline. After the question layer was built, a spec-reviewer subagent with no stake in the code
-checked every spec section and probed the guard with 196 adversarial queries; its three findings
-were fixed in their own commit and the lesser ones are listed above. The question layer itself
-uses Claude Sonnet 5.5 through the Anthropic API with structured output, and the model ID is
-configuration, not code. Where judgement calls were made (what Tier 2 must find in a result,
-whether to keep an extra field), the human decided and the spec was updated to match.
+The first two commits hold the data, the profile, the profiling and oracle scripts, the specs
+and the AI configuration. No application code existed yet.
+
+Claude Code then built the app from the specs in six steps, following
+[docs/build-plan.md](docs/build-plan.md). The first step was a plan and a list of spec gaps,
+not code. Spec corrections were committed separately, ahead of the code they affect. After the
+question layer was built, a spec-reviewer subagent checked the implementation against all three
+specs. Of its three findings, the first was fixed in code, the second was closed by a
+clarification to `specs/evals.md` that I made by hand, and the third is documented as a
+limitation above. The question layer itself uses Claude Sonnet 5.5 through the Anthropic API
+with structured output; the model ID is configuration, not code.
 
 ## Next steps with another day
 
