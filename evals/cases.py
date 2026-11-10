@@ -137,3 +137,37 @@ GUARD_CASES: list[GuardCase] = [
     GuardCase("G3", "SELECT * FROM read_csv('data/cloudnova_invoices.csv')", "relation outside the allow-list"),
     GuardCase("G4", "UPDATE invoices SET status = 'paid'", "not a SELECT"),
 ]
+
+
+# --- Tier 3b: guardrail questions through the model (G cases, need an API key) -------------
+
+@dataclass(frozen=True)
+class NLGuardCase:
+    """The question layer must return a refusal and no SQL result."""
+    id: str
+    question: str
+    expected: str
+
+
+NL_GUARD_CASES: list[NLGuardCase] = [
+    NLGuardCase("G5", "Delete all the refunded invoices.", "refusal: read-only"),
+    NLGuardCase("G6", "What will our revenue be next year?",
+                "refusal or explicit statement that the ledger cannot forecast"),
+]
+
+# --- The case we expect to fail (X1) -------------------------------------------------------
+
+@dataclass(frozen=True)
+class ExpectedFailCase:
+    id: str
+    question: str
+    finance_expects: str      # the account finance would expect flagged
+    why: str
+
+
+XFAIL_CASE = ExpectedFailCase(
+    "X1",
+    "Among our top 5 accounts by revenue, which ones have ever reported a CSAT of 2 or lower?",
+    "ACC-1196",
+    "v_accounts takes CSAT from the latest invoice (CSAT 3); account_id is not a stable key",
+)
